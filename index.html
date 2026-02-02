@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ViCo-LWIR Usage Guide</title>
+<style>
+    body {
+        font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        background-color: #f7f9fc;
+        color: #333;
+        line-height: 1.6;
+        padding: 2rem;
+    }
+    h1, h2, h3 {
+        color: #1a73e8;
+    }
+    h1 {
+        text-align: center;
+        margin-bottom: 1rem;
+    }
+    h2 {
+        margin-top: 2rem;
+        border-bottom: 2px solid #1a73e8;
+        padding-bottom: 0.3rem;
+    }
+    p {
+        margin: 0.5rem 0;
+    }
+    code {
+        background-color: #e8f0fe;
+        padding: 2px 5px;
+        border-radius: 3px;
+        font-family: monospace;
+    }
+    pre {
+        background-color: #e8f0fe;
+        padding: 1rem;
+        border-radius: 6px;
+        overflow-x: auto;
+    }
+    .section-icon {
+        font-size: 1.2rem;
+        margin-right: 0.5rem;
+    }
+    .aug-code {
+        margin-bottom: 1.5rem;
+    }
+    .note {
+        background-color: #fff3cd;
+        color: #856404;
+        padding: 1rem;
+        border-left: 4px solid #ffeeba;
+        border-radius: 4px;
+        margin: 1rem 0;
+    }
+    table {
+        width: 100%;
+        border-collapse: collapse;
+        margin: 0.5rem 0 1.5rem 0;
+    }
+    th, td {
+        border: 1px solid #ccc;
+        padding: 0.5rem;
+        text-align: left;
+    }
+    th {
+        background-color: #e8f0fe;
+    }
+</style>
+</head>
+<body>
+
+<h1>ViCo-LWIR Usage Guide</h1>
+
+<h2>1️⃣ PyPI Installation</h2>
+<p>Install the SpatialCL package via <code>pip</code>:</p>
+<pre><code>pip install spatialcl</code></pre>
+<p class="note">After installing, you can leverage the full functionalities of SpatialCL.</p>
+
+<h2>2️⃣ Thermal Augmentation</h2>
+<p>Assuming your image is loaded and readable:</p>
+
+<h3>🧩 Occlusion</h3>
+<pre class="aug-code"><code>from Spatialcl.thermal import occlusion
+
+aug_img = occlusion(
+    img=image,
+    mask_width_ratio=0.6,
+    mask_height_ratio=0.2,
+    max_attempts=5
+)
+</code></pre>
+<table>
+    <tr><th>Parameter</th><th>Description</th></tr>
+    <tr><td>img</td><td>The input image to augment.</td></tr>
+    <tr><td>mask_width_ratio</td><td>Width of the occlusion mask as a fraction of image width (0–1).</td></tr>
+    <tr><td>mask_height_ratio</td><td>Height of the occlusion mask as a fraction of image height (0–1).</td></tr>
+    <tr><td>max_attempts</td><td>Number of attempts to place the occlusion mask randomly.</td></tr>
+</table>
+
+<h3>🎛️ Contrast</h3>
+<pre class="aug-code"><code>from Spatialcl.thermal import contrast
+
+aug_img = contrast(img=image, alpha=0.8)
+</code></pre>
+<table>
+    <tr><th>Parameter</th><th>Description</th></tr>
+    <tr><td>img</td><td>The input image to augment.</td></tr>
+    <tr><td>alpha</td><td>Contrast adjustment factor. &gt;1 increases contrast, &lt;1 decreases contrast.</td></tr>
+</table>
+
+<h3>☀️ Mixed Brightness & Contrast</h3>
+<pre class="aug-code"><code>from Spatialcl.thermal import brightness_contrast
+
+aug_img = brightness_contrast(
+    mg=image,
+    brightness=1,
+    contrast=0.6
+)
+</code></pre>
+<table>
+    <tr><th>Parameter</th><th>Description</th></tr>
+    <tr><td>mg</td><td>The input image.</td></tr>
+    <tr><td>brightness</td><td>Brightness multiplier. 1 means no change, &gt;1 brighter, &lt;1 darker.</td></tr>
+    <tr><td>contrast</td><td>Contrast multiplier. 1 means no change, &gt;1 higher contrast, &lt;1 lower contrast.</td></tr>
+</table>
+
+<h3>🌀 Elastic Transformation</h3>
+<pre class="aug-code"><code>from Spatialcl.thermal import elastic
+
+aug_img = elastic(img=image, alpha=1, sigma=0.8)
+</code></pre>
+<table>
+    <tr><th>Parameter</th><th>Description</th></tr>
+    <tr><td>img</td><td>The input image to warp.</td></tr>
+    <tr><td>alpha</td><td>Scaling factor for the displacement intensity.</td></tr>
+    <tr><td>sigma</td><td>Standard deviation for Gaussian smoothing of the displacement field. Controls smoothness.</td></tr>
+</table>
+
+<h2>3️⃣ Compute Learning Mechanism</h2>
+
+<h3>🔸 Uncertainty Weight under Weak Supervision</h3>
+<pre class="aug-code"><code>from Spatialcl.uncertainty import co_cluster_uncertainty
+import torch
+
+z = torch.randn(4, 8)
+img_id = torch.tensor([0, 1, 2, 3])  # augmented views of same image ids
+labels = torch.tensor([0, 1, 0, 1])
+prior_weight = 2
+
+uncertainty = co_cluster_uncertainty(z, labels, img_id)
+</code></pre>
+<table>
+    <tr><th>Parameter</th><th>Description</th></tr>
+    <tr><td>z</td><td>Feature embeddings of the images.</td></tr>
+    <tr><td>img_id</td><td>IDs representing which augmented views belong to the same original image.</td></tr>
+    <tr><td>labels</td><td>Class labels for each sample.</td></tr>
+    <tr><td>prior_weight</td><td>Weighting factor to balance prior information in uncertainty calculation.</td></tr>
+</table>
+
+<h3>🔸 Curriculum Learning Mechanism</h3>
+<pre class="aug-code"><code>from Spatialcl.uncertainty import compute_weights_from_uncertainty
+
+progressive_reweighting = compute_weights_from_uncertainty(
+    uncertainty=uncertainty_matrix,
+    epoch=0,
+    T=100
+)
+</code></pre>
+<table>
+    <tr><th>Parameter</th><th>Description</th></tr>
+    <tr><td>uncertainty</td><td>Matrix of computed uncertainty weights.</td></tr>
+    <tr><td>epoch</td><td>Current training epoch (for progressive reweighting).</td></tr>
+    <tr><td>T</td><td>Temperature parameter controlling the smoothness of reweighting.</td></tr>
+</table>
+
+<h3>🔸 Global Loss Function in the Learning Process</h3>
+<p>This function computes the global learning mechanism in a single step, without intermediate stages. It simultaneously addresses:</p>
+<ul>
+    <li>Class imbalance</li>
+    <li>Intra-class variability</li>
+    <li>Low inter-class similarity</li>
+</ul>
+<p>It allows multiple modalities (Thermal, RGB, RGB-D, etc.) to capture and reason about uncertainty effectively. Applying this mechanism to complex datasets exposes realistic challenges and helps the model learn robust features.</p>
+
+<pre class="aug-code"><code>from Spatialcl.uncertainty import build_uwcl
+import torch
+
+img_id = torch.tensor([0, 1, 2, 1])
+labels = torch.tensor([0, 1, 0, 1])
+z = torch.randn(4, 8)
+
+output = build_uwcl(
+    z=z,
+    img_ids=img_id,
+    labels=labels,
+    epoch=0,
+    device="cpu"
+)
+</code></pre>
+<table>
+    <tr><th>Parameter</th><th>Description</th></tr>
+    <tr><td>z</td><td>Feature embeddings of images.</td></tr>
+    <tr><td>img_ids</td><td>IDs representing augmented views of the same image.</td></tr>
+    <tr><td>labels</td><td>Class labels for each sample.</td></tr>
+    <tr><td>epoch</td><td>Current training epoch.</td></tr>
+    <tr><td>device</td><td>Compute device ("cpu" or "cuda").</td></tr>
+</table>
+<p class="note">This global mechanism works for <strong>RGB-Thermal fusion</strong> in weakly-supervised contrastive learning.</p>
+
+<h3>🔸 Encoder Choices for Fine-Grained Patch-Level Learning</h3>
+<p>You can use different encoders for feature extraction depending on your task:</p>
+<ul>
+    <li><strong>ResNet Base:</strong> Convolutional encoder that naturally learns strong local and patch-level representations.</li>
+    <li><strong>Vision Transformer (ViT):</strong> Patch-based transformer encoder that models long-range dependencies and global context.</li>
+</ul>
+
+<p>For <strong>fine-grained patch-level learning</strong>, features are learned at the patch resolution rather than at the image level.</p>
+
+<p><strong>Downstream classification task (recommended):</strong></p>
+<ul>
+    <li>Use <code>average pooling</code> over patch embeddings to aggregate fine-grained patch information into a global representation.</li>
+</ul>
+
+<p><strong>Alternative (ViT-specific):</strong></p>
+<ul>
+    <li>The <code>class token</code> can be used, but it is more suitable for global classification and may discard fine patch-level details.</li>
+</ul>
+<p>
+For fine-grained classification, <strong>patch-level is preferred</strong> as it preserves contributions from all patches, enabling better discrimination of subtle local patterns. This design integrates seamlessly with the <strong>global uncertainty-aware learning mechanism</strong> and supports multi-modal settings such as <strong>RGB–Thermal fusion</strong>.
+</p>
+</body>
+</html>
